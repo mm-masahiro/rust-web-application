@@ -1,4 +1,6 @@
-use actix_web::{get, http::header, post, web, App, HttpResponse, HttpServer, ResponseError};
+use actix_web::{
+    delete, get, http::header, post, web, App, HttpResponse, HttpServer, ResponseError,
+};
 use askama::Template;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -64,6 +66,19 @@ async fn index(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpRespo
     Ok(HttpResponse::Ok()
         .content_type("text/html")
         .body(response_body))
+}
+
+#[delete("/delete")]
+async fn delete_todo(
+    params: web::Form<DeleteParams>,
+    db: web::Data<r2d2::Pool<SqliteConnectionManager>>,
+) -> Result<HttpResponse, MyError> {
+    let conn = db.get()?;
+    conn.execute("DELETE FROM todo WHERE id=?", &[&params.id])?;
+
+    Ok(HttpResponse::SeeOther()
+        .header(header::LOCATION, "/")
+        .finish())
 }
 
 #[post("/add")]
