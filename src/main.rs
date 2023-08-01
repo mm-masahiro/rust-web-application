@@ -110,9 +110,15 @@ async fn main() -> Result<(), actix_web::Error> {
     .expect("Failed to create a table `todo`.");
 
     // コネクションプールを渡す
-    HttpServer::new(move || App::new().service(index).data(pool.clone()))
-        .bind("127.0.0.1:8080")?
-        .run()
-        .await?;
+    HttpServer::new(move || {
+        App::new()
+            .service(index)
+            .service(add_todo)
+            .service(delete_todo)
+            .data(pool.clone())
+    })
+    .bind("0.0.0.0:8080")?
+    .run()
+    .await?;
     Ok(())
 }
