@@ -1,13 +1,15 @@
 use actix_web::{
-    delete, get, http::header, post, web, App, HttpResponse, HttpServer, ResponseError,
+    delete, get, http::header, post, web, App, HttpResponse, HttpServer, Responder, ResponseError,
 };
 use askama::Template;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::params;
 use serde::Deserialize;
+use serde::Serialize;
 use thiserror::Error;
 
+#[derive(Debug, Serialize, Deserialize)]
 struct TodoEntry {
     id: u32,
     text: String,
@@ -68,6 +70,16 @@ async fn index(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpRespo
         .body(response_body))
 }
 
+#[get("/get_json")]
+async fn get_json(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpResponse, MyError> {
+    let todo = TodoEntry {
+        id: 100,
+        text: "test".to_string(),
+    };
+
+    Ok(HttpResponse::Ok().json(todo))
+}
+
 #[delete("/delete")]
 async fn delete_todo(
     params: web::Form<DeleteParams>,
@@ -115,6 +127,7 @@ async fn main() -> Result<(), actix_web::Error> {
             .service(index)
             .service(add_todo)
             .service(delete_todo)
+            .service(get_json)
             .data(pool.clone())
     })
     .bind("0.0.0.0:8080")?
