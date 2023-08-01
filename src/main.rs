@@ -72,12 +72,24 @@ async fn index(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpRespo
 
 #[get("/get_json")]
 async fn get_json(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpResponse, MyError> {
-    let todo = TodoEntry {
-        id: 100,
-        text: "test".to_string(),
-    };
+    let conn = db.get()?;
 
-    Ok(HttpResponse::Ok().json(todo))
+    let mut query = conn.prepare("SELECT id, text FROM todo")?;
+
+    let rows = query.query_map(params![], |row| {
+        let id = row.get(0)?;
+        let text = row.get(1)?;
+
+        Ok(TodoEntry { id, text })
+    })?;
+
+    let mut entries = Vec::new();
+
+    for row in rows {
+        entries.push(row?);
+    }
+
+    Ok(HttpResponse::Ok().json(&entries))
 }
 
 #[delete("/delete")]
