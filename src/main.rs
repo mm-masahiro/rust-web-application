@@ -1,5 +1,5 @@
 use actix_web::{
-    delete, get, http::header, post, web, App, HttpResponse, HttpServer, Responder, ResponseError,
+    delete, get, http::header, post, web, App, HttpResponse, HttpServer, ResponseError,
 };
 use askama::Template;
 use r2d2::Pool;
@@ -13,6 +13,11 @@ use thiserror::Error;
 struct TodoEntry {
     id: u32,
     text: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct TodoShow {
+    id: u32,
 }
 
 #[derive(Template)]
@@ -92,6 +97,27 @@ async fn get_json(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpRe
     Ok(HttpResponse::Ok().json(&entries))
 }
 
+#[get("/todo/{id}")]
+async fn get_todo(
+    params: web::Path<TodoShow>,
+    db: web::Data<r2d2::Pool<SqliteConnectionManager>>,
+) -> Result<HttpResponse, MyError> {
+    let conn = db.get()?;
+    let mut query = conn.prepare("SELECT id, text FROM todo WHERE id=:params.id")?;
+
+    let rows = query.query_map(&[&params.id.to_string()], |row| {
+        let id = row.get(0)?;
+
+        Ok(TodoShow { id })
+    })?;
+
+    for row in rows {
+        println!("Found row {:?}", row);
+    }
+
+    Ok(HttpResponse::Ok().json({}))
+}
+
 #[delete("/delete")]
 async fn delete_todo(
     params: web::Form<DeleteParams>,
@@ -140,6 +166,7 @@ async fn main() -> Result<(), actix_web::Error> {
             .service(add_todo)
             .service(delete_todo)
             .service(get_json)
+            .service(get_todo)
             .data(pool.clone())
     })
     .bind("0.0.0.0:8080")?
