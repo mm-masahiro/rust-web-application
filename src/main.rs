@@ -10,21 +10,20 @@ use serde::Serialize;
 use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
-
-struct Todo {
-    id: u32,
-    text: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 struct TodoEntry {
     id: u32,
     text: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct TodoShow {
+struct RequestTodoShow {
     id: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ResponseTodoShow {
+    id: u32,
+    text: String,
 }
 
 #[derive(Template)]
@@ -106,19 +105,19 @@ async fn get_json(db: web::Data<Pool<SqliteConnectionManager>>) -> Result<HttpRe
 
 #[get("/todo/{id}")]
 async fn get_todo(
-    params: web::Path<TodoShow>,
+    params: web::Path<RequestTodoShow>,
     db: web::Data<r2d2::Pool<SqliteConnectionManager>>,
 ) -> Result<HttpResponse, MyError> {
     let conn = db.get()?;
     let mut query = conn.prepare("SELECT id, text FROM todo WHERE id = :id")?;
     let rows = query.query_map(&[(":id", params.id.to_string().as_str())], |row| {
-        Ok(Todo {
+        Ok(ResponseTodoShow {
             id: row.get(0)?,
             text: row.get(1)?,
         })
     })?;
 
-    let mut todos: Vec<Todo> = Vec::new();
+    let mut todos: Vec<ResponseTodoShow> = Vec::new();
 
     for row in rows {
         todos.push(row?);
