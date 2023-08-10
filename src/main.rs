@@ -10,6 +10,13 @@ use serde::Serialize;
 use thiserror::Error;
 
 #[derive(Debug, Serialize, Deserialize)]
+
+struct Todo {
+    id: u32,
+    text: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct TodoEntry {
     id: u32,
     text: String,
@@ -103,19 +110,21 @@ async fn get_todo(
     db: web::Data<r2d2::Pool<SqliteConnectionManager>>,
 ) -> Result<HttpResponse, MyError> {
     let conn = db.get()?;
-    let mut query = conn.prepare("SELECT id, text FROM todo WHERE id=:params.id")?;
-
-    let rows = query.query_map(&[&params.id.to_string()], |row| {
-        let id = row.get(0)?;
-
-        Ok(TodoShow { id })
+    let mut query = conn.prepare("SELECT id, text FROM todo WHERE id = :id")?;
+    let rows = query.query_map(&[(":id", params.id.to_string().as_str())], |row| {
+        Ok(Todo {
+            id: row.get(0)?,
+            text: row.get(1)?,
+        })
     })?;
 
+    let mut todos: Vec<Todo> = Vec::new();
+
     for row in rows {
-        println!("Found row {:?}", row);
+        todos.push(row?);
     }
 
-    Ok(HttpResponse::Ok().json({}))
+    Ok(HttpResponse::Ok().json(&todos[0]))
 }
 
 #[delete("/delete")]
